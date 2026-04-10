@@ -117,7 +117,7 @@ def build_pyvis_graph(
                  "strokeColor": "#0E1117", "align": "top"}
       },
       "nodes": {
-        "font": {"size": 13, "color": "#FFFFFF", "bold": true},
+        "font": {"size": 12, "color": "#FFFFFF", "bold": true, "multi": true},
         "borderWidth": 2,
         "shadow": {"enabled": true, "size": 6}
       },
@@ -135,24 +135,35 @@ def build_pyvis_graph(
         node_type  = d["node_type"]
         title_text = d["title"]
         in_deg     = d["in_degree"]
-        short      = (title_text[:20] + "…") if len(title_text) > 20 else title_text
+
+        # Break title into two lines of ~22 chars each
+        words = title_text.split()
+        line1, line2 = [], []
+        count = 0
+        for w in words:
+            if count < 22:
+                line1.append(w)
+                count += len(w) + 1
+            else:
+                line2.append(w)
+        l1 = " ".join(line1)
+        l2 = (" ".join(line2))[:22] + ("…" if len(" ".join(line2)) > 22 else "")
+        name_part = f"{l1}\n{l2}" if l2 else l1
 
         if node_type == "GHOST":
-            label = f"⬛ {node}\n(not in library)"
+            label = f"{node}\n(not in library)"
             color, shape, size, border = "#555555", "diamond", 16, "#888888"
         else:
-            icons = ""
-            if d["has_broken"]: icons += "🔴 "
-            if d["is_orphan"]:  icons += "🟡 "
-            label = f"{icons}{short}\n({node})"
+            # No dot icons — color of the node already communicates status
+            label = f"{name_part}\n[{node}]"
             if node == highlight_node:
-                color, shape, size, border = "#F5A623", "ellipse", 35, "#FF8C00"
+                color, shape, size, border = "#F5A623", "ellipse", 38, "#FF8C00"
             elif node in highlight_set:
-                color, shape, size, border = "#27AE60", "ellipse", 28, "#1E8449"
+                color, shape, size, border = "#27AE60", "ellipse", 32, "#1E8449"
             elif d["is_orphan"]:
-                color, shape, size, border = "#8E44AD", "ellipse", 26, "#6C3483"
+                color, shape, size, border = "#8E44AD", "ellipse", 30, "#6C3483"
             else:
-                color, shape, size, border = "#2980B9", "ellipse", 26, "#1A5276"
+                color, shape, size, border = "#2980B9", "ellipse", 30, "#1A5276"
 
         net.add_node(
             node, label=label,

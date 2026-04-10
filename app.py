@@ -9,8 +9,14 @@ import re
 import sys
 import os
 from dotenv import load_dotenv
-load_dotenv()  # works locally
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "") or st.secrets.get("GEMINI_API_KEY", "")
+
+# Load API key from .env file
+load_dotenv()
+# Load from .env locally, from Streamlit secrets in cloud
+try:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "") or st.secrets.get("GEMINI_API_KEY", "")
+except Exception:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -340,13 +346,17 @@ with tab3:
         else:
             st.error(f"Found **{len(broken)}** broken reference(s)")
             for b in broken:
+                src_title = G.nodes.get(b["source_sop"], {}).get("title", "")
+                tgt_title = G.nodes.get(b["target_sop"], {}).get("title", "")
+                src_label = f"{b['source_sop']} — {src_title[:35]}" if src_title else b["source_sop"]
+                tgt_label = f"{b['target_sop']} — {tgt_title[:35]}" if tgt_title else b["target_sop"]
                 with st.expander(
-                    f"🔴 **{b['source_sop']}** → **{b['target_sop']}** — {b['reason']}",
+                    f"🔴 **{src_label}** → **{tgt_label}** — {b['reason']}",
                     expanded=True
                 ):
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("Source SOP", b["source_sop"])
-                    col2.metric("Target SOP", b["target_sop"])
+                    col1.metric("Source SOP", src_label)
+                    col2.metric("Target SOP", tgt_label)
                     col3.metric("Reason", b["reason"])
                     if b.get("source_section"):
                         st.caption(f"Referenced from: Section {b['source_section']}")
@@ -364,8 +374,9 @@ with tab3:
             st.warning(f"Found **{len(orphans)}** orphan SOP(s) — not referenced by any other document")
             for o in orphans:
                 node_data = G.nodes.get(o, {})
+                title = node_data.get("title", "")
                 st.markdown(
-                    f"🟣 **{o}** — {node_data.get('title', '')} "
+                    f"🟣 **{o}**{f' — {title}' if title else ''} "
                     f"<span class='orphan-badge'>ORPHAN</span>",
                     unsafe_allow_html=True
                 )
@@ -380,8 +391,11 @@ with tab3:
         else:
             st.warning(f"Found **{len(cycles)}** circular reference chain(s)")
             for cycle in cycles:
-                chain = " → ".join(cycle) + f" → {cycle[0]}"
-                st.markdown(f"🔄 `{chain}`")
+                def _cycle_label(sop_id):
+                    t = G.nodes.get(sop_id, {}).get("title", "")
+                    return f"{sop_id} ({t[:25]})" if t else sop_id
+                chain = " → ".join(_cycle_label(c) for c in cycle) + f" → {_cycle_label(cycle[0])}"
+                st.markdown(f"🔄 {chain}")
 
         st.divider()
 
@@ -418,15 +432,20 @@ with tab3:
             "BROKEN REFERENCES:",
         ]
         for b in broken:
+            src_t = G.nodes.get(b["source_sop"], {}).get("title", "")
+            tgt_t = G.nodes.get(b["target_sop"], {}).get("title", "")
             report_lines.append(
-                f"  {b['source_sop']} → {b['target_sop']} §{b['target_section']} | {b['reason']}"
+                f"  {b['source_sop']} ({src_t[:30]}) → {b['target_sop']} ({tgt_t[:30]}) "
+                f"§{b['target_section']} | {b['reason']}"
             )
         report_lines += ["", "ORPHAN SOPs:"]
         for o in orphans:
-            report_lines.append(f"  {o}")
+            t = G.nodes.get(o, {}).get("title", "")
+            report_lines.append(f"  {o} — {t}")
         report_lines += ["", "CIRCULAR REFERENCES:"]
         for cycle in cycles:
-            report_lines.append("  " + " → ".join(cycle))
+            def _rl(s): t = G.nodes.get(s,{}).get("title",""); return f"{s} ({t[:20]})" if t else s
+            report_lines.append("  " + " → ".join(_rl(c) for c in cycle))
 
         report_text = "\n".join(report_lines)
         st.download_button(
@@ -539,13 +558,9 @@ with tab4:
                     for sop in impact["direct_in"]:
                         node_data = G.nodes.get(sop, {})
                         title = node_data.get("title", "")
-                        # Find which section this SOP references from
-                        sec_info = ""
-                        for _, _, edata in G.out_edges(sop, data=True):
-                            pass  # just show title
                         display = f"🔴 **{sop}**"
                         if title:
-                            display += f" — {title[:55]}"
+                            display += f" — {title}"
                         st.markdown(display)
                 else:
                     st.success("No SOPs reference this one directly")
@@ -558,7 +573,6 @@ with tab4:
                         title = node_data.get("title", "")
                         node_type = node_data.get("type", "SOP")
                         icon = "⬛" if node_type == "GHOST" else "🔵"
-                        # Find section info from edge
                         sec_info = ""
                         for _, tgt, edata in G.out_edges(selected_sop, data=True):
                             if tgt == sop:
@@ -567,7 +581,7 @@ with tab4:
                                     sec_info = f" §{s}"
                         display = f"{icon} **{sop}**{sec_info}"
                         if title:
-                            display += f" — {title[:50]}"
+                            display += f" — {title}"
                         st.markdown(display)
                 else:
                     st.success("This SOP has no outgoing references")
@@ -742,7 +756,7 @@ with tab5:
                                 title = new_G.nodes.get(tgt, {}).get("title", "")
                                 label = f"**{tgt}**"
                                 if title:
-                                    label += f" ({title[:40]})"
+                                    label += f" — {title}"
                                 if sec:
                                     label += f" §{sec}"
                                 return label
