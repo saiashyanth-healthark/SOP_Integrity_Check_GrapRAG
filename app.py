@@ -671,16 +671,20 @@ with tab5:
                        "check the Validation and Impact tabs to see the updated results.")
 
             real_sops = sorted([n for n, d in G.nodes(data=True) if d.get("type") == "SOP"])
-            edit_sop = st.selectbox("Select SOP to edit", real_sops, key="editor_sop_select")
+            edit_sop = st.selectbox(
+                "Select SOP to edit", real_sops, key="editor_sop_select",
+                format_func=lambda x: f"{x} — {G.nodes[x].get('title', '')}" if G.nodes.get(x) else x,
+            )
 
             if edit_sop:
                 current_text = st.session_state.edited_texts.get(
                     edit_sop,
                     st.session_state.raw_texts.get(edit_sop, "")
                 )
+                sop_full_title = G.nodes.get(edit_sop, {}).get("title", edit_sop)
 
                 edited = st.text_area(
-                    f"Editing: {edit_sop}",
+                    f"Editing: {edit_sop} — {sop_full_title}",
                     value=current_text,
                     height=380,
                     key=f"editor_{edit_sop}",
