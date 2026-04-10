@@ -132,8 +132,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📤 Upload & Process",
     "🕸️ Graph View",
     "🔍 Validation Report",
-    "💬 Q&A + Live Editor",
     "⚡ Impact Analysis",
+    "💬 Q&A + Live Editor",
 ])
 
 
@@ -458,9 +458,9 @@ with tab3:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# TAB 5 — IMPACT ANALYSIS
+# TAB 4 — IMPACT ANALYSIS
 # ════════════════════════════════════════════════════════════════════════════
-with tab5:
+with tab4:
     if not st.session_state.processing_done:
         st.info("Upload and process SOPs in the **Upload & Process** tab first.")
     else:
@@ -588,7 +588,7 @@ with tab5:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# TAB 4 — Q&A + LIVE EDITOR
+# TAB 5 — Q&A + LIVE EDITOR
 # ════════════════════════════════════════════════════════════════════════════
 with tab5:
     if not st.session_state.processing_done:
